@@ -1,0 +1,21 @@
+[package]
+name = "nanstats"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pulp = { version = "0.18", features = ["macro"] }
+
+[features]
+default = []
+nightly = ["pulp/nightly"]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports", "rayon"] }
+rand = "0.8"
+
+[[bench]]
+name = "benchmarks"
+harness = false
