@@ -37,7 +37,6 @@ where
 #[inline(always)]
 pub fn nanvar_with_mean_f32_with_simd<S: Simd>(simd: S, xs: &[f32], mean: f32) -> f32 {
     // Constants
-    let zeros = simd.f32s_splat(0.);
     let ones = simd.f32s_splat(1.);
     let means = simd.f32s_splat(mean);
 
@@ -64,29 +63,17 @@ pub fn nanvar_with_mean_f32_with_simd<S: Simd>(simd: S, xs: &[f32], mean: f32) -
         let mask2 = simd.f32s_equal(x2, x2);
         let mask3 = simd.f32s_equal(x3, x3);
 
-        // Create the 1/0 masks
-        let masked_ones0 = simd.m32s_select_f32s(mask0, ones, zeros);
-        let masked_ones1 = simd.m32s_select_f32s(mask1, ones, zeros);
-        let masked_ones2 = simd.m32s_select_f32s(mask2, ones, zeros);
-        let masked_ones3 = simd.m32s_select_f32s(mask3, ones, zeros);
-
         // Accumulate counts
-        count0 = simd.f32s_add(masked_ones0, count0);
-        count1 = simd.f32s_add(masked_ones1, count1);
-        count2 = simd.f32s_add(masked_ones2, count2);
-        count3 = simd.f32s_add(masked_ones3, count3);
-
-        // Mask away the NaNs from the chunk
-        let masked_chunk0 = simd.m32s_select_f32s(mask0, x0, zeros);
-        let masked_chunk1 = simd.m32s_select_f32s(mask1, x1, zeros);
-        let masked_chunk2 = simd.m32s_select_f32s(mask2, x2, zeros);
-        let masked_chunk3 = simd.m32s_select_f32s(mask3, x3, zeros);
+        count0 = simd.m32s_select_f32s(mask0, simd.f32s_add(ones, count0), count0);
+        count1 = simd.m32s_select_f32s(mask1, simd.f32s_add(ones, count1), count1);
+        count2 = simd.m32s_select_f32s(mask2, simd.f32s_add(ones, count2), count2);
+        count3 = simd.m32s_select_f32s(mask3, simd.f32s_add(ones, count3), count3);
 
         // Compute the difference
-        let diff0 = simd.f32s_sub(masked_chunk0, means);
-        let diff1 = simd.f32s_sub(masked_chunk1, means);
-        let diff2 = simd.f32s_sub(masked_chunk2, means);
-        let diff3 = simd.f32s_sub(masked_chunk3, means);
+        let diff0 = simd.f32s_sub(x0, means);
+        let diff1 = simd.f32s_sub(x1, means);
+        let diff2 = simd.f32s_sub(x2, means);
+        let diff3 = simd.f32s_sub(x3, means);
 
         // Square difference
         let diff2_0 = simd.f32s_mul(diff0, diff0);
@@ -95,21 +82,19 @@ pub fn nanvar_with_mean_f32_with_simd<S: Simd>(simd: S, xs: &[f32], mean: f32) -
         let diff2_3 = simd.f32s_mul(diff3, diff3);
 
         // Accumulate result
-        sum0 = simd.f32s_add(diff2_0, sum0);
-        sum1 = simd.f32s_add(diff2_1, sum1);
-        sum2 = simd.f32s_add(diff2_2, sum2);
-        sum3 = simd.f32s_add(diff2_3, sum3);
+        sum0 = simd.m32s_select_f32s(mask0, simd.f32s_add(diff2_0, sum0), sum0);
+        sum1 = simd.m32s_select_f32s(mask1, simd.f32s_add(diff2_1, sum1), sum1);
+        sum2 = simd.m32s_select_f32s(mask2, simd.f32s_add(diff2_2, sum2), sum2);
+        sum3 = simd.m32s_select_f32s(mask3, simd.f32s_add(diff2_3, sum3), sum3);
     }
 
     // Then deal with the rest of the chunk
     for &x0 in head1 {
         let mask0 = simd.f32s_equal(x0, x0);
-        let masked_ones0 = simd.m32s_select_f32s(mask0, ones, zeros);
-        count0 = simd.f32s_add(masked_ones0, count0);
-        let masked_chunk0 = simd.m32s_select_f32s(mask0, x0, zeros);
-        let diff0 = simd.f32s_sub(masked_chunk0, means);
+        count0 = simd.m32s_select_f32s(mask0, simd.f32s_add(ones, count0), count0);
+        let diff0 = simd.f32s_sub(x0, means);
         let diff2_0 = simd.f32s_mul(diff0, diff0);
-        sum0 = simd.f32s_add(diff2_0, sum0);
+        sum0 = simd.m32s_select_f32s(mask0, simd.f32s_add(diff2_0, sum0), sum0);
     }
 
     // Parallel reduce the sums and counts
@@ -138,7 +123,6 @@ pub fn nanvar_with_mean_f32_with_simd<S: Simd>(simd: S, xs: &[f32], mean: f32) -
 #[inline(always)]
 pub fn nanvar_with_mean_f64_with_simd<S: Simd>(simd: S, xs: &[f64], mean: f64) -> f64 {
     // Constants
-    let zeros = simd.f64s_splat(0.);
     let ones = simd.f64s_splat(1.);
     let means = simd.f64s_splat(mean);
 
@@ -165,29 +149,17 @@ pub fn nanvar_with_mean_f64_with_simd<S: Simd>(simd: S, xs: &[f64], mean: f64) -
         let mask2 = simd.f64s_equal(x2, x2);
         let mask3 = simd.f64s_equal(x3, x3);
 
-        // Create the 1/0 masks
-        let masked_ones0 = simd.m64s_select_f64s(mask0, ones, zeros);
-        let masked_ones1 = simd.m64s_select_f64s(mask1, ones, zeros);
-        let masked_ones2 = simd.m64s_select_f64s(mask2, ones, zeros);
-        let masked_ones3 = simd.m64s_select_f64s(mask3, ones, zeros);
-
         // Accumulate counts
-        count0 = simd.f64s_add(masked_ones0, count0);
-        count1 = simd.f64s_add(masked_ones1, count1);
-        count2 = simd.f64s_add(masked_ones2, count2);
-        count3 = simd.f64s_add(masked_ones3, count3);
-
-        // Mask away the NaNs from the chunk
-        let masked_chunk0 = simd.m64s_select_f64s(mask0, x0, zeros);
-        let masked_chunk1 = simd.m64s_select_f64s(mask1, x1, zeros);
-        let masked_chunk2 = simd.m64s_select_f64s(mask2, x2, zeros);
-        let masked_chunk3 = simd.m64s_select_f64s(mask3, x3, zeros);
+        count0 = simd.m64s_select_f64s(mask0, simd.f64s_add(ones, count0), count0);
+        count1 = simd.m64s_select_f64s(mask1, simd.f64s_add(ones, count1), count1);
+        count2 = simd.m64s_select_f64s(mask2, simd.f64s_add(ones, count2), count2);
+        count3 = simd.m64s_select_f64s(mask3, simd.f64s_add(ones, count3), count3);
 
         // Compute the difference
-        let diff0 = simd.f64s_sub(masked_chunk0, means);
-        let diff1 = simd.f64s_sub(masked_chunk1, means);
-        let diff2 = simd.f64s_sub(masked_chunk2, means);
-        let diff3 = simd.f64s_sub(masked_chunk3, means);
+        let diff0 = simd.f64s_sub(x0, means);
+        let diff1 = simd.f64s_sub(x1, means);
+        let diff2 = simd.f64s_sub(x2, means);
+        let diff3 = simd.f64s_sub(x3, means);
 
         // Square difference
         let diff2_0 = simd.f64s_mul(diff0, diff0);
@@ -196,21 +168,19 @@ pub fn nanvar_with_mean_f64_with_simd<S: Simd>(simd: S, xs: &[f64], mean: f64) -
         let diff2_3 = simd.f64s_mul(diff3, diff3);
 
         // Accumulate result
-        sum0 = simd.f64s_add(diff2_0, sum0);
-        sum1 = simd.f64s_add(diff2_1, sum1);
-        sum2 = simd.f64s_add(diff2_2, sum2);
-        sum3 = simd.f64s_add(diff2_3, sum3);
+        sum0 = simd.m64s_select_f64s(mask0, simd.f64s_add(diff2_0, sum0), sum0);
+        sum1 = simd.m64s_select_f64s(mask1, simd.f64s_add(diff2_1, sum1), sum1);
+        sum2 = simd.m64s_select_f64s(mask2, simd.f64s_add(diff2_2, sum2), sum2);
+        sum3 = simd.m64s_select_f64s(mask3, simd.f64s_add(diff2_3, sum3), sum3);
     }
 
     // Then deal with the rest of the chunk
     for &x0 in head1 {
         let mask0 = simd.f64s_equal(x0, x0);
-        let masked_ones0 = simd.m64s_select_f64s(mask0, ones, zeros);
-        count0 = simd.f64s_add(masked_ones0, count0);
-        let masked_chunk0 = simd.m64s_select_f64s(mask0, x0, zeros);
-        let diff0 = simd.f64s_sub(masked_chunk0, means);
+        count0 = simd.m64s_select_f64s(mask0, simd.f64s_add(ones, count0), count0);
+        let diff0 = simd.f64s_sub(x0, means);
         let diff2_0 = simd.f64s_mul(diff0, diff0);
-        sum0 = simd.f64s_add(diff2_0, sum0);
+        sum0 = simd.m64s_select_f64s(mask0, simd.f64s_add(diff2_0, sum0), sum0);
     }
 
     // Parallel reduce the sums and counts
